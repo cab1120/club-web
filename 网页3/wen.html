@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://getbootstrap.com//docs/5.3/assets/js/color-modes.js"></script>
+
+    <meta charset="utf-8">
+    <title>游研社</title>
+    <link href="https://getbootstrap.com//docs/5.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>评论</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #comment-section {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #comment-form {
+            margin-bottom: 20px;
+        }
+
+        #comment-form input,
+        #comment-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        #comment-form button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #comment-form button:hover {
+            background-color: #0056b3;
+        }
+
+        .comment {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .comment-author {
+            font-weight: bold;
+        }
+
+        .comment-date {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        #timer {
+            color: red;
+        }
+
+        .delete-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+
+        .reply-button {
+            margin-top: 5px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .reply-button:hover {
+            background-color: #218838;
+        }
+
+        .reply-form {
+            margin-top: 10px;
+            display: none;
+        }
+
+        .reply-form input,
+        .reply-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .reply-form button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .reply-form button:hover {
+            background-color: #0056b3;
+        }
+
+        .reply {
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-top: 10px;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+          <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
+            <img src="./img/20250303-19343.png" width="40" height="32" alt="游研社">
+            <span class="fs-4">游戏研发社</span>
+          </a>
+    
+          <ul class="nav nav-pills">
+            <li class="nav-item"><a href="Web.html" class="nav-link">主页</a></li>
+            <li class="nav-item"><a href="./gong.html" class="nav-link">公告&招新</a></li>
+            <li class="nav-item"><a href="wen.html" class="nav-link active"  aria-current="page">评论</a></li>
+            <li class="nav-item"><a class="nav-link" >作品展示</a></li>
+          </ul>
+        </header>
+    </div>
+    <div id="comment-section">
+        <h2>发表评论</h2>
+        <form id="comment-form">
+            <input type="text" id="author" placeholder="你的网名" required>
+            <textarea id="comment-text" placeholder="写下你的评论" required></textarea>
+            <button type="submit" id="submit-button">提交评论</button>
+            <span id="timer"></span>
+        </form>
+        <h2>评论列表</h2>
+        <div id="comments"></div>
+    </div>
+    <input type="password" id="developer-password" placeholder="输入开发者密码">
+    <button id="login-button">登录开发者</button>
+    <input type="password" id="new-password" placeholder="输入新密码">
+    <input type="password" id="confirm-password" placeholder="确认新密码">
+    <button id="change-password-button">更改密码</button>
+
+    <script>
+        const commentForm = document.getElementById('comment-form');
+        const submitButton = document.getElementById('submit-button');
+        const timerElement = document.getElementById('timer');
+        const commentsDiv = document.getElementById('comments');
+        const passwordInput = document.getElementById('developer-password');
+        const loginButton = document.getElementById('login-button');
+        const newPasswordInput = document.getElementById('new-password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        const changePasswordButton = document.getElementById('change-password-button');
+
+        let timer;
+        let canSubmit = true;
+        let isDeveloper = false;
+        let developerPassword = localStorage.getItem('developerPassword') || "123456";
+
+        // 从 localStorage 中加载评论
+        function loadComments() {
+            const storedComments = localStorage.getItem('comments');
+            if (storedComments) {
+                const comments = JSON.parse(storedComments);
+                comments.forEach((comment, index) => {
+                    const commentDiv = createCommentElement(comment.author, comment.text, comment.date, index, comment.replies || []);
+                    commentsDiv.appendChild(commentDiv);
+                });
+            }
+        }
+
+        // 创建评论元素
+        function createCommentElement(author, text, date, index, replies) {
+            const commentDiv = document.createElement('div');
+            commentDiv.classList.add('comment');
+
+            const authorSpan = document.createElement('span');
+            authorSpan.classList.add('comment-author');
+            authorSpan.textContent = author;
+
+            const dateSpan = document.createElement('span');
+            dateSpan.classList.add('comment-date');
+            dateSpan.textContent = date;
+
+            const commentP = document.createElement('p');
+            commentP.textContent = text;
+
+            const deleteButton = document.createElement('button');
+            deleteButton.classList.add('delete-button');
+            deleteButton.textContent = '删除';
+            deleteButton.addEventListener('click', () => {
+                if (isDeveloper) {
+                    deleteComment(index);
+                }
+            });
+            if (!isDeveloper) {
+                deleteButton.style.display = 'none';
+            }
+
+            const replyButton = document.createElement('button');
+            replyButton.classList.add('reply-button');
+            replyButton.textContent = '回复';
+            replyButton.addEventListener('click', () => toggleReplyForm(replyForm));
+
+            const replyForm = createReplyForm(index);
+
+            commentDiv.appendChild(authorSpan);
+            commentDiv.appendChild(document.createTextNode(' - '));
+            commentDiv.appendChild(dateSpan);
+            commentDiv.appendChild(document.createElement('br'));
+            commentDiv.appendChild(commentP);
+            commentDiv.appendChild(deleteButton);
+            commentDiv.appendChild(replyButton);
+            commentDiv.appendChild(replyForm);
+
+            replies.forEach((reply, replyIndex) => {
+                const replyElement = createReplyElement(reply.author, reply.text, reply.date);
+                commentDiv.appendChild(replyElement);
+            });
+
+            return commentDiv;
+        }
+
+        // 创建回复元素
+        function createReplyElement(author, text, date) {
+            const replyDiv = document.createElement('div');
+            replyDiv.classList.add('reply');
+
+            const authorSpan = document.createElement('span');
+            authorSpan.classList.add('comment-author');
+            authorSpan.textContent = author;
+
+            const dateSpan = document.createElement('span');
+            dateSpan.classList.add('comment-date');
+            dateSpan.textContent = date;
+
+            const replyP = document.createElement('p');
+            replyP.textContent = text;
+
+            replyDiv.appendChild(authorSpan);
+            replyDiv.appendChild(document.createTextNode(' - '));
+            replyDiv.appendChild(dateSpan);
+            replyDiv.appendChild(document.createElement('br'));
+            replyDiv.appendChild(replyP);
+
+            return replyDiv;
+        }
+
+        // 创建回复表单
+        function createReplyForm(parentIndex) {
+            const replyForm = document.createElement('form');
+            replyForm.classList.add('reply-form');
+
+            const authorInput = document.createElement('input');
+            authorInput.type = 'text';
+            authorInput.placeholder = '你的网名';
+            authorInput.required = true;
+
+            const replyTextarea = document.createElement('textarea');
+            replyTextarea.placeholder = '写下你的回复';
+            replyTextarea.required = true;
+
+            const submitButton = document.createElement('button');
+            submitButton.type = 'submit';
+            submitButton.textContent = '提交回复';
+
+            replyForm.appendChild(authorInput);
+            replyForm.appendChild(replyTextarea);
+            replyForm.appendChild(submitButton);
+
+            replyForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const author = authorInput.value;
+                const replyText = replyTextarea.value;
+                const currentDate = new Date().toLocaleString();
+                addReply(parentIndex, author, replyText, currentDate);
+                authorInput.value = '';
+                replyTextarea.value = '';
+                replyForm.style.display = 'none';
+            });
+
+            return replyForm;
+        }
+
+        // 切换回复表单显示状态
+        function toggleReplyForm(form) {
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 保存评论到 localStorage
+        function saveComment(author, text, date) {
+            const storedComments = localStorage.getItem('comments');
+            const comments = storedComments ? JSON.parse(storedComments) : [];
+            comments.push({ author, text, date, replies: [] });
+            localStorage.setItem('comments', JSON.stringify(comments));
+        }
+
+        // 启动计时器
+        function startTimer() {
+            canSubmit = false;
+            submitButton.disabled = true;
+            let secondsLeft = 10;
+            timer = setInterval(() => {
+                timerElement.textContent = `剩余时间: ${secondsLeft} 秒`;
+                if (secondsLeft === 0) {
+                    clearInterval(timer);
+                    timerElement.textContent = '';
+                    submitButton.disabled = false;
+                    canSubmit = true;
+                }
+                secondsLeft--;
+            }, 1000);
+        }
+
+        // 删除评论
+        function deleteComment(index) {
+            const storedComments = localStorage.getItem('comments');
+            if (storedComments) {
+                const comments = JSON.parse(storedComments);
+                comments.splice(index, 1);
+                localStorage.setItem('comments', JSON.stringify(comments));
+                // 从页面中移除评论元素
+                const commentElements = commentsDiv.children;
+                commentsDiv.removeChild(commentElements[index]);
+            }
+        }
+
+        // 添加回复
+        function addReply(parentIndex, author, text, date) {
+            const storedComments = localStorage.getItem('comments');
+            if (storedComments) {
+                const comments = JSON.parse(storedComments);
+                const parentComment = comments[parentIndex];
+                if (!parentComment.replies) {
+                    parentComment.replies = [];
+                }
+                parentComment.replies.push({ author, text, date });
+                localStorage.setItem('comments', JSON.stringify(comments));
+
+                // 更新页面
+                const commentDiv = commentsDiv.children[parentIndex];
+                const replyElement = createReplyElement(author, text, date);
+                commentDiv.appendChild(replyElement);
+            }
+        }
+
+        commentForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (!canSubmit) {
+                return;
+            }
+
+            const author = document.getElementById('author').value;
+            const commentText = document.getElementById('comment-text').value;
+            const currentDate = new Date().toLocaleString();
+
+            const commentDiv = createCommentElement(author, commentText, currentDate, getCommentCount(), []);
+            commentsDiv.appendChild(commentDiv);
+
+            saveComment(author, commentText, currentDate);
+
+            document.getElementById('author').value = '';
+            document.getElementById('comment-text').value = '';
+
+            startTimer();
+        });
+
+        // 获取当前评论数量
+        function getCommentCount() {
+            const storedComments = localStorage.getItem('comments');
+            return storedComments ? JSON.parse(storedComments).length : 0;
+        }
+
+        // 开发者登录
+        loginButton.addEventListener('click', () => {
+            if (passwordInput.value === developerPassword) {
+                isDeveloper = true;
+                // 重新加载评论以显示删除按钮
+                commentsDiv.innerHTML = '';
+                loadComments();
+            }
+        });
+
+        // 更改密码
+        changePasswordButton.addEventListener('click', () => {
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            if (newPassword === confirmPassword) {
+                developerPassword = newPassword;
+                localStorage.setItem('developerPassword', newPassword);
+                alert('密码更改成功');
+            } else {
+                alert('新密码和确认密码不一致，请重新输入');
+            }
+            newPasswordInput.value = '';
+            confirmPasswordInput.value = '';
+        });
+
+        // 页面加载时加载评论
+        loadComments();
+    </script>
+    
+    <footer class="text-body-secondary py-5">
+        <div class="container">
+          <p class="float-end mb-1">
+            <a href="#">Back to top</a>
+          </p>
+          <a href="tel:15124353110">电话：15124353110</a>
+        </div>
+      </footer>
+      <script src="https://getbootstrap.com//docs/5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+      <script src="sidebars.js"></script>
+</body>
+
+</html>
